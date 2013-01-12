@@ -45,25 +45,23 @@ $ = jQuery
 
 class LightboxOptions
   constructor: ->
-    @fileLoadingImage = 'images/loading.gif'     
-    @fileCloseImage = 'images/close.png'
+    @fileLoadingImage = '../assets/loading.gif'
+    @fileCloseImage = '../assets/close.png'
     @resizeDuration = 700
     @fadeDuration = 500
     @labelImage = "Image" # Change to localize to non-english language
-    @labelOf = "of"       
-
+    @labelOf = "of"
+    @fromTopFact = 20 # distance from top of screen for popup 1/n
 
 class Lightbox
   constructor: (@options) ->
     @album = []
     @currentImageIndex = undefined
     @init()
-    
   
   init: ->
     @enable()
     @build()
-
 
   # Loop through anchors and areamaps looking for rel attributes that contain 'lightbox'
   # On clicking these, start lightbox.
@@ -71,7 +69,6 @@ class Lightbox
     $('body').on 'click', 'a[rel^=lightbox], area[rel^=lightbox]', (e) =>
       @start $(e.currentTarget)
       false
-
 
   # Build html for the lightbox and the overlay.
   # Attach event handlers to the new DOM elements. click click click
@@ -93,7 +90,7 @@ class Lightbox
           )
         ),
         $('<div/>', class: 'lb-dataContainer').append(
-          $('<div/>', class: 'lb-data').append(          
+          $('<div/>', class: 'lb-data').append(
             $('<div/>', class: 'lb-details').append(
               $('<span/>', class: 'lb-caption'),
               $('<span/>', class: 'lb-number')
@@ -143,7 +140,7 @@ class Lightbox
 
   # Show overlay and lightbox. If the image is part of a set, add siblings to album array.
   start: ($link) ->
-    $(window).on "resize", @sizeOverlay
+    $(window).resize @sizeOverlay
 
     $('select, object, embed').css visibility: "hidden"
     $('#lightboxOverlay')
@@ -166,7 +163,7 @@ class Lightbox
 
     # Position lightbox 
     $window = $(window)
-    top = $window.scrollTop() + $window.height()/10
+    top = $window.scrollTop() + $window.height() / @options.fromTopFact
     left = $window.scrollLeft()
     $lightbox = $('#lightbox')
     $lightbox
@@ -178,13 +175,23 @@ class Lightbox
     @changeImage(imageNumber)
     return
   
+  # Stretch overlay to fit the document
+  sizeOverlay: () ->
+    $('#lightboxOverlay')
+      .width( $(document).width() )
+      .height( $(document).height() )
 
   # Hide most UI elements in preparation for the animated resizing of the lightbox.
   changeImage: (imageNumber) ->
     
-    @disableKeyboardNav()    
+    @disableKeyboardNav()
     $lightbox = $('#lightbox')
     $image = $lightbox.find('.lb-image')
+    containerHeight = $lightbox.find(".lb-dataContainer").height()
+    topPadding = $(window).height() / @options.fromTopFact
+    containerPadding = parseInt $lightbox.find('.lb-container').css('padding')
+    maxWidth = $(window).width() - containerPadding * 6
+    maxHeight = $(window).height() - (containerHeight + topPadding + containerPadding * 2)
 
     @sizeOverlay()
     $('#lightboxOverlay').fadeIn( @options.fadeDuration )
@@ -196,25 +203,24 @@ class Lightbox
     
     # When image to show is preloaded, we send the width and height to sizeContainer()
     preloader = new Image
+
     preloader.onload = () =>
+      # Fit image in window
+      if preloader.width > maxWidth
+        preloader.height = maxWidth / preloader.width * preloader.height
+        preloader.width = maxWidth
+      if preloader.height > maxHeight
+        preloader.width = maxHeight / preloader.height * preloader.width
+        preloader.height = maxHeight
+
       $image.attr 'src', @album[imageNumber].link
-      # Bug fix by Andy Scott 
-      $image.width = preloader.width
-      $image.height = preloader.height
-      # End of bug fix
+      $image.width preloader.width
+      $image.height preloader.height
       @sizeContainer preloader.width, preloader.height
 
     preloader.src = @album[imageNumber].link
     @currentImageIndex = imageNumber
-    return  
-
-
-  # Stretch overlay to fit the document
-  sizeOverlay: () ->
-    $('#lightboxOverlay')
-      .width( $(document).width())
-      .height( $(document).height() )
-  
+    return
   
   # Animate the size of the lightbox to fit the image we are showing
   sizeContainer: (imageWidth, imageHeight) ->
@@ -224,14 +230,10 @@ class Lightbox
     oldWidth = $outerContainer.outerWidth()
     oldHeight = $outerContainer.outerHeight()
 
-    $container = $lightbox.find('.lb-container')
-    containerTopPadding = parseInt $container.css('padding-top'), 10
-    containerRightPadding = parseInt $container.css('padding-right'), 10
-    containerBottomPadding = parseInt $container.css('padding-bottom'), 10
-    containerLeftPadding = parseInt $container.css('padding-left'), 10        
+    containerPadding = parseInt $lightbox.find('.lb-container').css('padding')
 
-    newWidth = imageWidth + containerLeftPadding + containerRightPadding
-    newHeight = imageHeight + containerTopPadding + containerBottomPadding
+    newWidth = imageWidth + 2 * containerPadding
+    newHeight = imageHeight + 2 * containerPadding
   
     # Animate just the width, just the height, or both, depending on what is different
     if newWidth != oldWidth && newHeight != oldHeight
@@ -259,7 +261,6 @@ class Lightbox
     
     return
   
-  
   # Display the image and it's details and begin preload neighboring images.
   showImage: ->
     $lightbox = $('#lightbox')
@@ -273,13 +274,12 @@ class Lightbox
 
     return
 
-
   # Display previous and next navigation if appropriate.
   updateNav: ->
     $lightbox = $('#lightbox')
     $lightbox.find('.lb-nav').show()
-    if @currentImageIndex > 0 then $lightbox.find('.lb-prev').show();
-    if @currentImageIndex < @album.length - 1 then $lightbox.find('.lb-next').show();
+    if @currentImageIndex > 0 then $lightbox.find('.lb-prev').show()
+    if @currentImageIndex < @album.length - 1 then $lightbox.find('.lb-next').show()
     return
   
   # Display caption, image number, and closing button. 
@@ -305,7 +305,6 @@ class Lightbox
         @sizeOverlay()
     return
     
-    
   # Preload previos and next images in set.  
   preloadNeighboringImages: ->
    if @album.length > @currentImageIndex + 1
@@ -314,20 +313,17 @@ class Lightbox
 
     if @currentImageIndex > 0
       preloadPrev = new Image
-      preloadPrev.src = @album[@currentImageIndex - 1].link    
+      preloadPrev.src = @album[@currentImageIndex - 1].link
     return
-
 
   enableKeyboardNav: ->
     $(document).on 'keyup.keyboard', $.proxy( @keyboardAction, this)
     return
-
   
   disableKeyboardNav: ->
     $(document).off '.keyboard'
     return
   
-    
   keyboardAction: (event) ->
     KEYCODE_ESC = 27
     KEYCODE_LEFTARROW = 37
