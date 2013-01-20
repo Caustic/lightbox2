@@ -47,6 +47,7 @@ class LightboxOptions
   constructor: ->
     @fileLoadingImage = '../assets/loading.gif'
     @fileCloseImage = '../assets/close.png'
+    @fileDownloadImage = '../assets/download.png'
     @resizeDuration = 700
     @fadeDuration = 500
     @labelImage = "Image" # Change to localize to non-english language
@@ -98,6 +99,9 @@ class Lightbox
             $('<div/>', class: 'lb-closeContainer').append(
               $('<a/>', class: 'lb-close').append(
                 $('<img/>', src: @options.fileCloseImage)
+              ),
+              $('<a/>', class: 'lb-download', href:'#').append(
+                $('<img/>', src: @options.fileDownloadImage)
               )
             )
           )
@@ -136,6 +140,10 @@ class Lightbox
       @end()
       return false
 
+    $lightbox.find('.lb-download').on 'click', (e) =>
+      window.location = $('.lb-download').attr('href')
+      return false
+
     return
 
   # Show overlay and lightbox. If the image is part of a set, add siblings to album array.
@@ -156,10 +164,14 @@ class Lightbox
       @album.push link: $link.attr('href'), title: $link.attr('title')
     else
       # Image is part of a set
-      for a, i in $( $link.prop("tagName") + '[rel="' + $link.attr('rel') + '"]')
+      i = 0
+      for a in $( $link.prop("tagName") + '[rel="' + $link.attr('rel') + '"]')
+        if $(a).parents('.data').length >= 1
+          continue
         @album.push link: $(a).attr('href'), title: $(a).attr('title')
         if $(a).attr('href') == $link.attr('href')
           imageNumber = i
+        i++
 
     # Position lightbox 
     $window = $(window)
@@ -190,6 +202,8 @@ class Lightbox
     containerHeight = $lightbox.find(".lb-dataContainer").height()
     topPadding = $(window).height() / @options.fromTopFact
     containerPadding = parseInt $lightbox.find('.lb-container').css('padding')
+    if typeof containerPadding != 'undefined'
+      containerPadding = 10
     maxWidth = $(window).width() - containerPadding * 6
     maxHeight = $(window).height() - (containerHeight + topPadding + containerPadding * 2)
 
@@ -231,6 +245,8 @@ class Lightbox
     oldHeight = $outerContainer.outerHeight()
 
     containerPadding = parseInt $lightbox.find('.lb-container').css('padding')
+    if typeof containerPadding != 'undefined'
+      containerPadding = 10
 
     newWidth = imageWidth + 2 * containerPadding
     newHeight = imageHeight + 2 * containerPadding
@@ -257,7 +273,7 @@ class Lightbox
       $lightbox.find('.lb-nextLink').height(newHeight)
       @showImage()
       return
-    , @options.resizeDuration 
+    , @options.resizeDuration
     
     return
   
@@ -266,6 +282,9 @@ class Lightbox
     $lightbox = $('#lightbox')
     $lightbox.find('.lb-loader').hide()
     $lightbox.find('.lb-image').fadeIn 'slow'
+
+    $image = $lightbox.find('.lb-image')
+    $('.lb-download').prop('href', $image.attr('src'))
 
     @updateNav()
     @updateDetails()
@@ -295,7 +314,7 @@ class Lightbox
       $lightbox.find('.lb-number')
         .html( @options.labelImage + ' ' + (@currentImageIndex + 1) + ' ' + @options.labelOf + '  ' + @album.length)
         .fadeIn('fast')
-    else 
+    else
       $lightbox.find('.lb-number').hide()
 
     $lightbox.find('.lb-outerContainer').removeClass 'animating'
@@ -334,10 +353,10 @@ class Lightbox
 
     if keycode == KEYCODE_ESC || key.match(/x|o|c/)
       @end()
-    else if key == 'p' || keycode == KEYCODE_LEFTARROW
+    else if key == 'p' || keycode == KEYCODE_LEFTARROW || key == 'h'
       if @currentImageIndex != 0
           @changeImage @currentImageIndex - 1
-    else if key == 'n' || keycode == KEYCODE_RIGHTARROW
+    else if key == 'n' || keycode == KEYCODE_RIGHTARROW || key == 'l'
       if @currentImageIndex != @album.length - 1
           @changeImage @currentImageIndex + 1
     return
